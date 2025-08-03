@@ -1,6 +1,7 @@
 package com.astin.moneymaster.model;
 
 import android.content.Context;
+
 import androidx.room.Database;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
@@ -19,8 +20,16 @@ public abstract class AppDatabase extends RoomDatabase {
                     context.getApplicationContext(),
                     AppDatabase.class,
                     "money_master_db"
-            ).fallbackToDestructiveMigration().build();
+            ).build();
         }
         return instance;
+    }
+
+    // ✅ Add this method to allow safely closing Room before replacing the DB file
+    public static synchronized void closeDatabase() {
+        if (instance != null && instance.isOpen()) {
+            instance.close();
+            instance = null;
+        }
     }
 }

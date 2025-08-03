@@ -14,6 +14,10 @@ public interface PaymentItemDao {
     @Query("SELECT * FROM payment_items")
     List<PaymentItem> getAllItems();
 
+    @Query("SELECT * FROM payment_items")
+    List<PaymentItem> getAllItemsOnce();
+
+
     @Query("DELETE FROM payment_items")
     void deleteAll();
 

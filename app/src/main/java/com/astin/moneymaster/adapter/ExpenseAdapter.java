@@ -45,7 +45,7 @@ public class ExpenseAdapter extends RecyclerView.Adapter<ExpenseAdapter.ExpenseV
         HistoryEntry item = items.get(position);
 
         holder.nameText.setText(item.getCategoryName());
-        holder.amountText.setText("₹" + item.getAmountPaid());
+        holder.amountText.setText(""+item.getAmountPaid());
         holder.categoryText.setText(item.getDateTime());
 
         // Show itemName only if it exists

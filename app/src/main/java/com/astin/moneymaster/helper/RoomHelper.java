@@ -1,9 +1,12 @@
 package com.astin.moneymaster.helper;
 
 import android.content.Context;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+
+import androidx.room.Room;
 
 import com.astin.moneymaster.model.AppDatabase;
 import com.astin.moneymaster.model.CategoryTotal;
@@ -11,7 +14,12 @@ import com.astin.moneymaster.model.HistoryEntry;
 import com.astin.moneymaster.model.HistoryEntryDao;
 import com.astin.moneymaster.model.PaymentItem;
 import com.astin.moneymaster.model.PaymentItemDao;
+import com.astin.moneymaster.model.TempDatabase;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
@@ -26,7 +34,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Date;
 import java.util.Collections;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import android.text.TextUtils;
+
 
 public class RoomHelper {
 
@@ -76,12 +87,16 @@ public class RoomHelper {
 
             for (HistoryEntry entry : allEntries) {
                 Log.d("ROOMHELPER", "Entry → Category: " + entry.getCategoryName()
-                        + ", Amount: ₹" + entry.getAmountPaid()
+                        + ", Amount: " + entry.getAmountPaid()
                         + ", DateTime: " + entry.getDateTime()
                         + ", Item: " + entry.getItemName());
             }
         }).start();
     }
+
+
+
+
 
 
 
@@ -121,6 +136,102 @@ public class RoomHelper {
                         listener.onError("Invalid month format"));
             }
         }).start();
+    }
+
+
+    public static void mergeDatabaseFromUri(Context context, Uri uri, MergeCallback callback) {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+
+        executor.execute(() -> {
+            try {
+                File tempFile = new File(context.getFilesDir(), "temp_imported.db");
+
+                try (InputStream inputStream = context.getContentResolver().openInputStream(uri);
+                     OutputStream outputStream = new FileOutputStream(tempFile)) {
+
+                    byte[] buffer = new byte[1024];
+                    int length;
+                    while ((length = inputStream.read(buffer)) > 0) {
+                        outputStream.write(buffer, 0, length);
+                    }
+                }
+
+                if (!tempFile.exists()) {
+                    callback.onError("Temp DB file not found after copy.");
+                    return;
+                }
+
+                TempDatabase tempDb = Room.databaseBuilder(context,
+                                TempDatabase.class,
+                                "temp_imported_db")
+                        .createFromFile(tempFile)
+                        .allowMainThreadQueries()
+                        .build();
+
+                AppDatabase localDb = AppDatabase.getInstance(context);
+
+                PaymentItemDao localItemDao = localDb.paymentItemDao();
+                HistoryEntryDao localHistoryDao = localDb.historyEntryDao();
+                PaymentItemDao importedItemDao = tempDb.paymentItemDao();
+                HistoryEntryDao importedHistoryDao = tempDb.historyEntryDao();
+
+                List<PaymentItem> importedItems = importedItemDao.getAllItemsOnce();
+                List<HistoryEntry> importedHistory = importedHistoryDao.getAllEntriesOnce();
+                List<PaymentItem> existingItems = localItemDao.getAllItemsOnce();
+                List<HistoryEntry> existingHistory = localHistoryDao.getAllEntriesOnce();
+
+                for (PaymentItem item : importedItems) {
+                    boolean isDuplicate = false;
+                    for (PaymentItem existing : existingItems) {
+                        if (existing.getName().equals(item.getName()) &&
+                                existing.getBudget() == item.getBudget()) {
+                            isDuplicate = true;
+                            break;
+                        }
+                    }
+                    if (!isDuplicate) {
+                        PaymentItem newItem = new PaymentItem(item.getName(), item.getBudget());
+                        newItem.setBudget_balance(item.getBudget_balance());
+                        localItemDao.insert(newItem);
+                    }
+                }
+
+                for (HistoryEntry entry : importedHistory) {
+                    boolean isDuplicate = false;
+                    for (HistoryEntry existing : existingHistory) {
+                        if (TextUtils.equals(existing.getCategoryName(), entry.getCategoryName()) &&
+                                TextUtils.equals(existing.getItemName(), entry.getItemName()) &&
+                                existing.getAmountPaid() == entry.getAmountPaid() &&
+                                TextUtils.equals(existing.getDateTime(), entry.getDateTime())) {
+                            isDuplicate = true;
+                            break;
+                        }
+                    }
+                    if (!isDuplicate) {
+                        HistoryEntry newEntry = new HistoryEntry();
+                        newEntry.setCategoryName(entry.getCategoryName());
+                        newEntry.setItemName(entry.getItemName());
+                        newEntry.setAmountPaid(entry.getAmountPaid());
+                        newEntry.setDateTime(entry.getDateTime());
+                        localHistoryDao.insert(newEntry);
+                    }
+                }
+
+                tempDb.close();
+                tempFile.delete();
+
+                callback.onSuccess();
+
+            } catch (Exception e) {
+                Log.e("RoomHelper", "Merge failed", e);
+                callback.onError(e.getMessage());
+            }
+        });
+    }
+
+    public interface MergeCallback {
+        void onSuccess();
+        void onError(String error);
     }
 
 
@@ -301,6 +412,59 @@ public class RoomHelper {
 
 
 
+    public static void handleDateChangeAndUpdateExpense(Context context,
+                                                        HistoryEntry oldEntry,
+                                                        String newCategory,
+                                                        double newAmount,
+                                                        String amountStr,
+                                                        String newDate,
+                                                        String itemName,
+                                                        OnBudgetUpdateListener listener) {
+        AppDatabase db = AppDatabase.getInstance(context);
+        PaymentItemDao dao = db.paymentItemDao();
+
+        new Thread(() -> {
+            try {
+                String oldCategory = oldEntry.getCategoryName();
+                double oldAmount = oldEntry.getAmountPaid();
+
+                if (!oldCategory.equalsIgnoreCase(newCategory)) {
+                    adjustBudgetsForCategoryChange(dao, oldCategory, oldAmount, newCategory, newAmount);
+                }
+
+                recordHistory(context, newCategory, amountStr, newDate, itemName);
+                db.historyEntryDao().deleteById(oldEntry.getId());
+
+                new Handler(Looper.getMainLooper()).post(listener::onSuccess);
+            } catch (Exception e) {
+                new Handler(Looper.getMainLooper()).post(() ->
+                        listener.onError("Update failed: " + e.getMessage()));
+            }
+        }).start();
+    }
+
+
+
+    private static void adjustBudgetsForCategoryChange(PaymentItemDao dao,
+                                                       String oldCategory,
+                                                       double oldAmount,
+                                                       String newCategory,
+                                                       double newAmount) {
+        PaymentItem oldCatItem = dao.getCategoryByName(oldCategory);
+        if (oldCatItem != null) {
+            double restored = oldCatItem.getBudget_balance() + oldAmount;
+            dao.updateBudgetBalance(oldCategory, restored);
+        }
+
+        PaymentItem newCatItem = dao.getCategoryByName(newCategory);
+        if (newCatItem != null) {
+            double deducted = newCatItem.getBudget_balance() - newAmount;
+            dao.updateBudgetBalance(newCategory, deducted);
+        }
+    }
+
+
+
 
 
 
@@ -329,7 +493,7 @@ public class RoomHelper {
                 historyDao.update(item);  // Update history row
 
                 if (!oldCategory.equalsIgnoreCase(newCategory)) {
-                    // Step 1: Restore old category
+                    Log.d("ROOMCHECK", "updateHistoryEntryWithBudgetLogic: NOT EQUAL ");
                     PaymentItem oldCatItem = categoryDao.getCategoryByName(oldCategory);
                     if (oldCatItem != null) {
                         double restoredBalance = oldCatItem.getBudget_balance() + oldAmount;
@@ -345,6 +509,7 @@ public class RoomHelper {
 
                 } else {
                     // Same category, adjust budget
+                    Log.d("ROOMCHECK", "updateHistoryEntryWithBudgetLogic: EQUAL ");
                     PaymentItem itemToAdjust = categoryDao.getCategoryByName(newCategory);
                     if (itemToAdjust != null) {
                         double adjustedBalance = itemToAdjust.getBudget_balance() + oldAmount - newAmount;

@@ -9,6 +9,13 @@ A comprehensive budget and expense tracking Android application built with Java 
 - **Budget reset functionality**: Reset all category budgets to their original amounts
 - **Balance adjustments**: Automatic budget balance updates when expenses are recorded
 
+### 🔄 Data Import & Export
+- **Export database**: Easily back up your data by exporting the Room database as a `.db` file
+- **Import database**: Restore or merge data from an exported database into your current app
+- **Conflict-safe merging**: Automatically handles duplicate entries and avoids ID collisions
+- **No root required**: Works on any Android device with file access permission
+
+
 ### 💰 Expense Tracking
 - **Quick payment processing**: Record expenses against specific categories
 - **Pay Button**: The Pay button redirects to any supported payment app (e.g., GPay, CRED, PhonePe).
@@ -110,6 +117,25 @@ A comprehensive budget and expense tracking Android application built with Java 
 1. Reset all budgets to original amounts
 2. Adjust individual category budgets
 3. Monitor spending against budgets
+
+### Importing & Exporting Data
+
+#### 📤 Exporting the Database
+1. Tap the **three-dot menu (⋮)** in the toolbar
+2. Select **Share Database**
+3. Choose how to share it — via email, Google Drive, or file manager
+4. A `.db` file will be generated and shared using Android intents
+
+#### 📥 Importing the Database
+1. Tap the **three-dot menu (⋮)** in the toolbar
+2. Select **Import Database**
+3. Choose the exported `.db` file from file storage
+4. App will **merge** data safely with the existing data:
+   - Duplicates are checked using **ID and content**
+   - If a duplicate with different content exists, it is **re-inserted with a new ID**
+   - Imported data appears immediately in your history and categories
+
+
 
 
 ## 📌 Note for Developers

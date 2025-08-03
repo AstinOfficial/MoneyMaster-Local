@@ -21,6 +21,10 @@ public interface HistoryEntryDao {
     @Query("DELETE FROM history_entries")
     void deleteAll();
 
+    @Query("SELECT * FROM history_entries")
+    List<HistoryEntry> getAllEntriesOnce();
+
+
     @Delete
     void deleteEntry(HistoryEntry entry);
 

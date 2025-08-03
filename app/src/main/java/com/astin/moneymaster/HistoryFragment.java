@@ -28,7 +28,11 @@ import com.astin.moneymaster.adapter.CategoryAdapter;
 import com.astin.moneymaster.adapter.DayAdapter;
 import com.astin.moneymaster.adapter.ExpenseAdapter;
 import com.astin.moneymaster.helper.RoomHelper;
+import com.astin.moneymaster.model.AppDatabase;
 import com.astin.moneymaster.model.HistoryEntry;
+import com.astin.moneymaster.model.HistoryEntryDao;
+import com.astin.moneymaster.model.PaymentItem;
+import com.astin.moneymaster.model.PaymentItemDao;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.text.ParseException;
@@ -230,14 +234,14 @@ public class HistoryFragment extends Fragment {
                 });
 
                 dayRecyclerView.setAdapter(categoryAdapter);
-                monthSpendtxt.setText("Month Total: ₹" + totalMonthSpend);
+                monthSpendtxt.setText("Month Total: " + totalMonthSpend);
 
                 if (!categories.isEmpty()) {
                     String firstCategory = categories.get(0);
                     categoryAdapter.selectCategory(firstCategory);
                     loadItemsForCategory(monthYear, firstCategory);
                 } else {
-                    daySpendtxt.setText("Category Total: ₹0");
+                    daySpendtxt.setText("Category Total: 0");
                 }
             }
 
@@ -329,7 +333,7 @@ public class HistoryFragment extends Fragment {
             RoomHelper.updateBudgetBalance(getContext(), selectedCategory, itemBudget, new RoomHelper.OnBudgetUpdateListener() {
                 @Override
                 public void onSuccess() {
-                    Toast.makeText(getContext(), "Saved: " + selectedCategory + ", ₹" + itemBudget + ", " + date, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getContext(), "Saved: " + selectedCategory + ", " + itemBudget + ", " + date, Toast.LENGTH_SHORT).show();
                     refreshData();
                 }
 
@@ -358,7 +362,7 @@ public class HistoryFragment extends Fragment {
 
                 for (Map.Entry<String, Double> entry : sortedEntries) {
                     String category = entry.getKey();
-                    String amount = String.format("₹%.2f", entry.getValue());
+                    String amount = String.format("%.2f", entry.getValue());
 
                     int start = message.length();
                     message.append(category);
@@ -412,7 +416,7 @@ public class HistoryFragment extends Fragment {
             public void onDataLoaded(ArrayList<HistoryEntry> items, double totalSpend) {
                 itemList.clear();
                 itemList.addAll(items);
-                daySpendtxt.setText("Category Total: ₹" + totalSpend);
+                daySpendtxt.setText("Category Total: " + totalSpend);
                 expenseAdapter.notifyDataSetChanged();
             }
 
@@ -459,8 +463,8 @@ public class HistoryFragment extends Fragment {
                     // Handle empty state gracefully
                     Toast.makeText(getContext(), "No expense data available", Toast.LENGTH_SHORT).show();
 
-                    monthSpendtxt.setText("Month Total: ₹0");
-                    daySpendtxt.setText("Day Total: ₹0");
+                    monthSpendtxt.setText("Month Total: 0");
+                    daySpendtxt.setText("Day Total: 0");
 
                     dayRecyclerView.setAdapter(null);
                     itemsRecyclerView.setAdapter(null);
@@ -497,8 +501,8 @@ public class HistoryFragment extends Fragment {
                     loadItemsForDay(month, day); // Already written
                 });
                 dayRecyclerView.setAdapter(dayAdapter);
-                monthSpendtxt.setText("Month Total: ₹" + totalMonthSpend);
-                daySpendtxt.setText("Day Total: ₹0");
+                monthSpendtxt.setText("Month Total: " + totalMonthSpend);
+                daySpendtxt.setText("Day Total: 0");
 
                 if (!dayList.isEmpty()) {
                     String latestDay = dayList.get(0);
@@ -545,7 +549,7 @@ public class HistoryFragment extends Fragment {
                 itemList.clear();
                 itemList.addAll(items);
                 expenseAdapter.notifyDataSetChanged();
-                daySpendtxt.setText("Day Total: ₹" + totalSpend);
+                daySpendtxt.setText("Day Total: " + totalSpend);
             }
 
             @Override
@@ -560,8 +564,7 @@ public class HistoryFragment extends Fragment {
     }
 
     private void showEditDialog(String month, String dayInput, HistoryEntry item) {
-        // Check and extract "dd" if dayInput is in "yyyy-MM-dd HH:mm:ss" format
-        String dayOnly = dayInput; // fallback if not in expected format
+        String dayOnly = dayInput;
         SimpleDateFormat fullFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
         fullFormat.setLenient(false);
         try {
@@ -581,7 +584,6 @@ public class HistoryFragment extends Fragment {
         String currentDate = dayInput + " " + month;
         editDate.setText(currentDate);
 
-        // Set up date picker
         editDate.setOnClickListener(v -> {
             Calendar calendar = Calendar.getInstance();
             DatePickerDialog datePickerDialog = new DatePickerDialog(
@@ -589,11 +591,8 @@ public class HistoryFragment extends Fragment {
                     (view, year, monthNEW, dayOfMonth) -> {
                         Calendar selectedCalendar = Calendar.getInstance();
                         selectedCalendar.set(year, monthNEW, dayOfMonth, 0, 0, 0);
-
                         SimpleDateFormat datetime = new SimpleDateFormat("dd MMMM yyyy", Locale.getDefault());
-                        String selectedDate = datetime.format(selectedCalendar.getTime());
-
-                        editDate.setText(selectedDate);
+                        editDate.setText(datetime.format(selectedCalendar.getTime()));
                     },
                     calendar.get(Calendar.YEAR),
                     calendar.get(Calendar.MONTH),
@@ -627,7 +626,6 @@ public class HistoryFragment extends Fragment {
             }
         });
 
-
         editAmount.setText(String.valueOf(item.getAmountPaid()));
         String itemNameStr = item.getItemName();
         if (itemNameStr == null || itemNameStr.trim().isEmpty()) {
@@ -635,7 +633,6 @@ public class HistoryFragment extends Fragment {
         } else {
             editItem.setText(itemNameStr);
         }
-
 
         new AlertDialog.Builder(requireContext())
                 .setTitle("Edit Expense")
@@ -660,13 +657,12 @@ public class HistoryFragment extends Fragment {
                     }
 
                     if (currentDate.equals(date)) {
-                        // Use Room helper to update history and adjust budgets
                         RoomHelper.updateHistoryEntryWithBudgetLogic(
                                 getContext(),
-                                item,         // Existing HistoryEntry object (before update)
-                                newCategory,  // New category
-                                newAmount,    // New amount
-                                itemName,     // New item name
+                                item,
+                                newCategory,
+                                newAmount,
+                                itemName,
                                 new RoomHelper.OnBudgetUpdateListener() {
                                     @Override
                                     public void onSuccess() {
@@ -681,25 +677,33 @@ public class HistoryFragment extends Fragment {
                                     }
                                 }
                         );
-                    }
-                    else {
-                        // Delete old entry and create new one (date changed)
-                        try {
-                            RoomHelper.recordHistory(requireContext(),newCategory, amountStr, date, itemName);
+                    } else {
+                        RoomHelper.handleDateChangeAndUpdateExpense(
+                                requireContext(),
+                                item,
+                                newCategory,
+                                newAmount,
+                                amountStr,
+                                date,
+                                itemName,
+                                new RoomHelper.OnBudgetUpdateListener() {
+                                    @Override
+                                    public void onSuccess() {
+                                        Toast.makeText(getContext(), "Expense updated", Toast.LENGTH_SHORT).show();
+                                        refreshData();
+                                    }
 
-                            deleteExpenseFromRoom(item, true);
-
-
-
-                        } catch (ParseException e) {
-                            Toast.makeText(getActivity(), "Try again later", Toast.LENGTH_SHORT).show();
-                            Log.e(TAG, "Parse error: " + e.getMessage());
-                        }
+                                    @Override
+                                    public void onError(String error) {
+                                        Toast.makeText(getContext(), error, Toast.LENGTH_SHORT).show();
+                                    }
+                                });
                     }
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
     }
+
 
     private void showDeleteConfirmationDialog(HistoryEntry item) {
         new AlertDialog.Builder(requireContext())
