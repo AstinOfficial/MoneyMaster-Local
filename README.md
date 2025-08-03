@@ -105,7 +105,7 @@ A comprehensive budget and expense tracking Android application built with Java 
 1. Select a category
 2. Enter the expense amount
 3. Add optional item description
-4. Click the Pay Button to redirects to any supported payment app (e.g., GPay, CRED, PhonePe).
+4. Click the Pay Button to redirects to any supported payment app (e.g., GPay, PhonePe).
 
 ### Viewing History
 1. Navigate to History section
