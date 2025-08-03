@@ -66,14 +66,14 @@ A comprehensive budget and expense tracking Android application built with Java 
 
 - Android Studio (latest version recommended)
 - Android SDK (API level 21 or higher)
-- 
+
 
 ### Installation & Setup
 
 1. **Clone the repository**
    ```bash
-   https://github.com/AstinOfficial/MoneyMaster.git
-   cd MoneyMaster
+   https://github.com/AstinOfficial/MoneyMaster-Local.git
+   cd MoneyMaster-Local
    ```
 
 2. **Open in Android Studio**
