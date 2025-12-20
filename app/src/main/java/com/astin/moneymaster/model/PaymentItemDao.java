@@ -30,6 +30,9 @@ public interface PaymentItemDao {
     @Query("UPDATE payment_items SET budget_balance = budget")
     void resetAllBudgetBalances();
 
+    @Query("UPDATE payment_items SET budget_balance = budget WHERE id = :id")
+    void resetBudgetBalanceById(int id);
+
     @Query("UPDATE payment_items SET budget_balance = :newBalance WHERE name = :categoryName")
     void updateBudgetBalance(String categoryName, double newBalance);
 

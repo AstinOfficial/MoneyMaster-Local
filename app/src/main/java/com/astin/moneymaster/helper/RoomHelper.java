@@ -100,6 +100,11 @@ public class RoomHelper {
 
 
 
+
+
+
+
+
     public static void loadItemsForCategory(Context context, String monthYearInput, String category, OnHistoryDataListener listener) {
         new Thread(() -> {
             try {
@@ -362,6 +367,73 @@ public class RoomHelper {
         void onCategoriesLoaded(ArrayList<String> categories, Map<String, Double> categoryTotals, double totalMonthSpend);
         void onError(String error);
     }
+
+    public static void loadCategoriesForAllMonths(Context context, OnCategoriesLoadedListener listener) {
+        new Thread(() -> {
+            try {
+                AppDatabase db = AppDatabase.getInstance(context);
+                List<HistoryEntry> entries = db.historyEntryDao().getAllEntries();
+
+                Map<String, Double> categoryTotals = new HashMap<>();
+                ArrayList<String> categories = new ArrayList<>();
+                double totalSpend = 0;
+
+                for (HistoryEntry entry : entries) {
+                    String category = entry.getCategoryName();
+                    double amount = entry.getAmountPaid();
+
+                    totalSpend += amount;
+                    categoryTotals.put(category, categoryTotals.getOrDefault(category, 0.0) + amount);
+
+                    if (!categories.contains(category)) {
+                        categories.add(category);
+                    }
+                }
+
+                // Sort by highest spend
+                categories.sort((c1, c2) -> Double.compare(categoryTotals.get(c2), categoryTotals.get(c1)));
+
+                double finalTotalSpend = totalSpend;
+                ArrayList<String> finalCategories = new ArrayList<>(categories);
+
+                new Handler(Looper.getMainLooper()).post(() ->
+                        listener.onCategoriesLoaded(finalCategories, categoryTotals, finalTotalSpend));
+
+            } catch (Exception e) {
+                new Handler(Looper.getMainLooper()).post(() ->
+                        listener.onError("Failed to load categories: " + e.getMessage()));
+            }
+        }).start();
+    }
+
+    public static void loadItemsForCategoryAllMonths(Context context, String category, OnHistoryDataListener listener) {
+        new Thread(() -> {
+            try {
+                AppDatabase db = AppDatabase.getInstance(context);
+                List<HistoryEntry> entries = db.historyEntryDao().getEntriesByCategoryOrdered(category);
+
+                double totalSpend = 0;
+                ArrayList<HistoryEntry> itemList = new ArrayList<>();
+
+                for (HistoryEntry entry : entries) {
+                    totalSpend += entry.getAmountPaid();
+                    itemList.add(entry);
+                }
+
+                double finalTotalSpend = totalSpend;
+
+                new Handler(Looper.getMainLooper()).post(() ->
+                        listener.onDataLoaded(itemList, finalTotalSpend));
+
+            } catch (Exception e) {
+                new Handler(Looper.getMainLooper()).post(() ->
+                        listener.onError("Failed to load items: " + e.getMessage()));
+            }
+        }).start();
+    }
+
+
+
 
     public static void loadCategoriesForMonth(Context context, String monthYearInput,
                                               RoomHelper.OnCategoriesLoadedListener listener) {

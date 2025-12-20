@@ -49,13 +49,24 @@ public class PayFragment extends Fragment {
         progressBar = view.findViewById(R.id.progressBar);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-        adapter = new PaymentAdapter(getContext(), cat_item_list, this::refreshList);
+        adapter =new PaymentAdapter(
+                requireContext(),
+                cat_item_list,
+                this::refreshList,
+                this::navigateToHistory);
         recyclerView.setAdapter(adapter);
 
         refreshList();
 
         plusButton.setOnClickListener(v -> showAddItemDialog());
     }
+
+    private void navigateToHistory() {
+        if (getActivity() instanceof MainActivity) {
+            ((MainActivity) getActivity()).viewPager.setCurrentItem(1, true);
+        }
+    }
+
 
     public void refreshList() {
         progressBar.setVisibility(View.VISIBLE);

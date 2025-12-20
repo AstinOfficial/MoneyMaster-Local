@@ -26,7 +26,7 @@
     <EditText
         android:id="@+id/editItemBudget"
         android:hint="Amount"
-        android:inputType="numberDecimal"
+        android:inputType="numberSigned|numberDecimal"
         android:textSize="16sp"
         android:textColorHint="#999999"
     android:textColor="#000000"

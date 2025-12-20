@@ -4,5 +4,7 @@
     <color name="white">#FFFFFFFF</color>
     <color name="selected_category">#E3F2FD</color>
     <color name="purple_500">#6200EE</color>
+    <color name="holo_red_dark">#C21807</color>
+    <color name="gray_text">#FFFFFF</color>
 
 </resources>

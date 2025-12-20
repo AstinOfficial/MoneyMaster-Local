@@ -54,7 +54,7 @@ public class HistoryFragment extends Fragment {
     private TextView monthSpendtxt, daySpendtxt;
     private FloatingActionButton plusButton;
     private ProgressBar progressBar;
-    private static final String TAG = "RecyclerViewTouch";
+    private static final String TAG = "HistoryFragmentDEBUG";
     private ToggleButton categoryToggle;
     private boolean isShowingCategories = false;
     private String currentMonth;
@@ -90,6 +90,8 @@ public class HistoryFragment extends Fragment {
         progressBar = view.findViewById(R.id.progressBar);
         categoryToggle = view.findViewById(R.id.toggleButton);
         dayRecyclerView.setLayoutManager(new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false));
+
+
 
         dayRecyclerView.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -171,9 +173,26 @@ public class HistoryFragment extends Fragment {
 
 
 
+        categoryToggle.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View view) {
+                categoryToggle.setText("CATEGORY VIEW: ALL");
+                Log.d("ASTINCHECK", "Long Click -> CATEGORY VIEW: ALL");
+
+                loadAllMonthsCategoriesView(); // ✅ Use common function
+                return true;
+            }
+        });
+
+
+
+
+
 
         // Set up the toggle button listener
         categoryToggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            monthSpinner.setVisibility(View.VISIBLE);
+            monthSpendtxt.setVisibility(View.VISIBLE);
             isShowingCategories = isChecked;
             String selectedMonth = monthSpinner.getSelectedItem() != null
                     ? monthSpinner.getSelectedItem().toString()
@@ -223,6 +242,89 @@ public class HistoryFragment extends Fragment {
         super.onResume();
         viewPager.setUserInputEnabled(false);
     }
+
+    /**
+     * Loads categories across ALL months (common reusable function).
+     */
+    private void loadAllMonthsCategoriesView() {
+        monthSpinner.setVisibility(View.INVISIBLE);
+        monthSpendtxt.setVisibility(View.INVISIBLE);
+        progressBar.setVisibility(View.VISIBLE);
+
+        RoomHelper.loadCategoriesForAllMonths(requireContext(), new RoomHelper.OnCategoriesLoadedListener() {
+            @Override
+            public void onCategoriesLoaded(ArrayList<String> categories, Map<String, Double> categoryTotals, double totalSpend) {
+                progressBar.setVisibility(View.GONE);
+
+                CategoryAdapter categoryAdapter = new CategoryAdapter(categories, category -> {
+                    loadItemsForCategoryAllMonths(category);
+                });
+
+                dayRecyclerView.setAdapter(categoryAdapter);
+                monthSpendtxt.setText("Total Spend (All Months): " + totalSpend);
+
+                if (!categories.isEmpty()) {
+                    String firstCategory = categories.get(0);
+                    categoryAdapter.selectCategory(firstCategory);
+                    loadItemsForCategoryAllMonths(firstCategory);
+                } else {
+                    daySpendtxt.setText("Category Total: 0");
+                }
+
+                categoryToggle.setEnabled(true);
+                plusButton.setEnabled(true);
+            }
+
+            @Override
+            public void onError(String error) {
+                progressBar.setVisibility(View.GONE);
+                Toast.makeText(getContext(), "Failed to load all months", Toast.LENGTH_SHORT).show();
+                Log.e(TAG, error);
+            }
+        });
+    }
+
+
+    private void loadItemsForCategoryAllMonths(String category) {
+        Log.d("CATHECK", "loadItemsForCategoryAllMonths");
+
+        ArrayList<HistoryEntry> itemList = new ArrayList<>();
+
+        expenseAdapter = new ExpenseAdapter(itemList, new ExpenseAdapter.OnItemActionListener() {
+            @Override
+            public void onItemLongClick(HistoryEntry item) {
+                showDeleteConfirmationDialog(item);
+            }
+
+            @Override
+            public void onItemEditClick(HistoryEntry item) {
+                // Month isn’t needed here because we’re showing ALL months
+                showEditDialog(null, item.getDateTime(), item);
+            }
+        });
+
+        itemsRecyclerView.setAdapter(expenseAdapter);
+
+        RoomHelper.loadItemsForCategoryAllMonths(requireContext(), category, new RoomHelper.OnHistoryDataListener() {
+            @Override
+            public void onDataLoaded(ArrayList<HistoryEntry> items, double totalSpend) {
+                itemList.clear();
+                itemList.addAll(items);
+                daySpendtxt.setText("Category Total (All Months): " + totalSpend);
+                expenseAdapter.notifyDataSetChanged();
+            }
+
+            @Override
+            public void onError(String error) {
+                Toast.makeText(getContext(), "Failed to load items", Toast.LENGTH_SHORT).show();
+                Log.e(TAG, error);
+            }
+        });
+    }
+
+
+
+
 
     // New method to load categories for selected month
     private void loadCategoriesForMonth(String monthYear) {
@@ -433,6 +535,17 @@ public class HistoryFragment extends Fragment {
     private void loadToSpinner() {
         progressBar.setVisibility(View.VISIBLE);
 
+        // 🔑 Check if we are in ALL view mode
+        if ("CATEGORY VIEW: ALL".equals(categoryToggle.getText().toString())) {
+            loadAllMonthsCategoriesView();
+            return; // ✅ Exit early
+        }
+
+
+        // 🔑 Otherwise normal month-based loading
+        monthSpinner.setVisibility(View.VISIBLE);
+        monthSpendtxt.setVisibility(View.VISIBLE);
+
         ArrayList<String> monthsyearArray = new ArrayList<>();
         ArrayAdapter<String> Monthadapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, monthsyearArray);
         Monthadapter.setDropDownViewResource(R.layout.spinner_item_dark);
@@ -460,7 +573,6 @@ public class HistoryFragment extends Fragment {
                     categoryToggle.setEnabled(true);
                     plusButton.setEnabled(true);
                 } else {
-                    // Handle empty state gracefully
                     Toast.makeText(getContext(), "No expense data available", Toast.LENGTH_SHORT).show();
 
                     monthSpendtxt.setText("Month Total: 0");
@@ -485,13 +597,8 @@ public class HistoryFragment extends Fragment {
 
 
 
-
-
-
-
     private void loadDaysForMonth(String month) {
 
-        Log.d("MMTEST", " MAIN MONTH FUNCTION TO LOAD DAYS "+month);
 
         RoomHelper.loadDaysForMonth(requireContext(), month, new RoomHelper.OnDaysLoadedListener() {
             @Override

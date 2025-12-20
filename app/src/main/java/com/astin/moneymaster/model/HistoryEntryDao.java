@@ -15,6 +15,14 @@ public interface HistoryEntryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insert(HistoryEntry entry);
 
+
+    @Query("SELECT * FROM history_entries WHERE categoryName = :category")
+    List<HistoryEntry> getEntriesByCategory(String category);
+
+    @Query("SELECT * FROM history_entries WHERE categoryName = :category ORDER BY dateTime DESC")
+    List<HistoryEntry> getEntriesByCategoryOrdered(String category);
+
+
     @Query("SELECT * FROM history_entries ORDER BY dateTime DESC")
     List<HistoryEntry> getAllEntries();
 

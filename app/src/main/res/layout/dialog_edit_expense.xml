@@ -52,7 +52,7 @@
             android:layout_height="wrap_content"
             android:hint="Amount"
             android:textSize="16sp"
-            android:inputType="numberDecimal" />
+            android:inputType="numberSigned|numberDecimal"/>
     </com.google.android.material.textfield.TextInputLayout>
 
     <!-- Styled Item Name Input -->

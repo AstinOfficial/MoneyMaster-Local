@@ -5,6 +5,10 @@ import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
@@ -29,6 +33,7 @@ import androidx.room.Room;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 import androidx.viewpager2.widget.ViewPager2;
 
+import com.astin.moneymaster.adapter.AppListAdapter;
 import com.astin.moneymaster.adapter.ViewPagerAdapter;
 import com.astin.moneymaster.helper.FileProviderHelper;
 import com.astin.moneymaster.helper.RoomHelper;
@@ -47,6 +52,9 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -58,6 +66,15 @@ public class MainActivity extends AppCompatActivity {
     public ViewPager2 viewPager;
     private TabLayout tabLayout;
     private ProgressBar progressBar;
+    private List<ApplicationInfo> installedApps;
+    private SharedPreferences sharedPreferences;
+    private PackageManager packageManager;
+
+    public static final String PREFS_NAME = "AppLauncherPrefs";
+    public static final String SELECTED_APP_KEY = "selectedApp";
+    private static final String SELECTED_APP_NAME_KEY = "selectedAppName";
+
+
 
     private final ActivityResultLauncher<Intent> importLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -74,6 +91,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         setContentView(R.layout.activity_main);
 
         progressBar = findViewById(R.id.progressBar);
@@ -111,11 +129,81 @@ public class MainActivity extends AppCompatActivity {
                 importDatabase();
                 return true;
             }
+            else if (menuItem.getItemId() == R.id.menu_payment) {
+                showAppSelectionDialog();
+                return true;
+            }
             return false;
         });
 
         popupMenu.show();
     }
+
+    private void showAppSelectionDialog() {
+
+        if (installedApps == null) {
+            loadInstalledApps();
+        }
+
+        if (installedApps.isEmpty()) {
+            Toast.makeText(this, "No launchable apps found!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Create a custom adapter for the dialog
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
+        builder.setTitle("Select an App to Launch");
+
+        // Create a custom ArrayAdapter
+        AppListAdapter adapter = new AppListAdapter(this, installedApps, packageManager);
+
+        builder.setAdapter(adapter, (dialog, which) -> {
+            ApplicationInfo selectedApp = installedApps.get(which);
+            String appName = packageManager.getApplicationLabel(selectedApp).toString();
+
+            saveSelectedApp(selectedApp.packageName, appName);
+
+            Toast.makeText(MainActivity.this, "Selected: " + appName, Toast.LENGTH_SHORT).show();
+        });
+
+        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
+
+        android.app.AlertDialog dialog = builder.create();
+        dialog.show();
+    }
+
+    private void saveSelectedApp(String packageName, String appName) {
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putString(SELECTED_APP_KEY, packageName);
+        editor.putString(SELECTED_APP_NAME_KEY, appName);
+        editor.apply();
+    }
+
+    private void loadInstalledApps() {
+        installedApps = new ArrayList<>();
+
+        // Add "NONE" placeholder at the top
+        ApplicationInfo noneApp = new ApplicationInfo();
+        noneApp.packageName = "NONE";  // Special value
+        installedApps.add(noneApp);
+
+        List<ApplicationInfo> apps = packageManager.getInstalledApplications(PackageManager.GET_META_DATA);
+
+        for (ApplicationInfo app : apps) {
+            Intent launchIntent = packageManager.getLaunchIntentForPackage(app.packageName);
+            if (launchIntent != null && !app.packageName.equals(getPackageName())) {
+                installedApps.add(app);
+            }
+        }
+
+        // Sort real apps (excluding the dummy NONE)
+        Collections.sort(installedApps.subList(1, installedApps.size()), (app1, app2) -> {
+            String name1 = packageManager.getApplicationLabel(app1).toString();
+            String name2 = packageManager.getApplicationLabel(app2).toString();
+            return name1.compareToIgnoreCase(name2);
+        });
+    }
+
 
     private void exportDatabase() {
         Executors.newSingleThreadExecutor().execute(() -> {
@@ -207,6 +295,8 @@ public class MainActivity extends AppCompatActivity {
 
 
     private void initializeApp() {
+        sharedPreferences = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        packageManager = getPackageManager();
         ViewPagerAdapter adapter = new ViewPagerAdapter(this);
         viewPager.setAdapter(adapter);
 
