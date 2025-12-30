@@ -25,6 +25,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.astin.moneymaster.R;
 import com.astin.moneymaster.helper.RoomHelper;
 import com.astin.moneymaster.model.AppDatabase;
+import com.astin.moneymaster.model.MonthBalance;
 import com.astin.moneymaster.model.PaymentItem;
 import com.google.android.material.button.MaterialButton;
 
@@ -84,9 +85,9 @@ public class PaymentAdapter extends RecyclerView.Adapter<PaymentAdapter.ViewHold
         holder.balanceText.setText("(" + item.getBudget_balance() + " / " + item.getBudget() + ")");
 
         if (item.getBudget_balance() < 0) {
-            holder.balanceText.setTextColor(context.getResources().getColor(R.color.holo_red_dark)); // Define this color
+            holder.balanceText.setTextColor(context.getResources().getColor(R.color.holo_red_dark));
         } else {
-            holder.balanceText.setTextColor(context.getResources().getColor(R.color.gray_text)); // Normal gray color
+            holder.balanceText.setTextColor(context.getResources().getColor(R.color.gray_text));
         }
 
 
@@ -132,6 +133,17 @@ public class PaymentAdapter extends RecyclerView.Adapter<PaymentAdapter.ViewHold
 
                         AppDatabase db = AppDatabase.getInstance(context);
                         db.paymentItemDao().updateBudgetBalance(item.getId(), item.getBudget_balance());
+
+                        Double currentMonthBalance = db.monthBalanceDao().getBalanceOnce();
+                        if (currentMonthBalance == null) {
+                            currentMonthBalance = 0.0;
+                        }
+                        double newMonthBalance = currentMonthBalance - amount;
+                        db.monthBalanceDao().insertOrUpdate(
+                                new MonthBalance(newMonthBalance)
+                        );
+
+
                         RoomHelper.recordHistory(context, item, amount);
 
                         ((Activity) context).runOnUiThread(() -> {

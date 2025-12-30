@@ -12,6 +12,8 @@ import com.astin.moneymaster.model.AppDatabase;
 import com.astin.moneymaster.model.CategoryTotal;
 import com.astin.moneymaster.model.HistoryEntry;
 import com.astin.moneymaster.model.HistoryEntryDao;
+import com.astin.moneymaster.model.MonthBalance;
+import com.astin.moneymaster.model.MonthBalanceDao;
 import com.astin.moneymaster.model.PaymentItem;
 import com.astin.moneymaster.model.PaymentItemDao;
 import com.astin.moneymaster.model.TempDatabase;
@@ -166,7 +168,8 @@ public class RoomHelper {
                     return;
                 }
 
-                TempDatabase tempDb = Room.databaseBuilder(context,
+                TempDatabase tempDb = Room.databaseBuilder(
+                                context,
                                 TempDatabase.class,
                                 "temp_imported_db")
                         .createFromFile(tempFile)
@@ -175,16 +178,23 @@ public class RoomHelper {
 
                 AppDatabase localDb = AppDatabase.getInstance(context);
 
+                // DAOs
                 PaymentItemDao localItemDao = localDb.paymentItemDao();
                 HistoryEntryDao localHistoryDao = localDb.historyEntryDao();
+                MonthBalanceDao localMonthDao = localDb.monthBalanceDao();
+
                 PaymentItemDao importedItemDao = tempDb.paymentItemDao();
                 HistoryEntryDao importedHistoryDao = tempDb.historyEntryDao();
+                MonthBalanceDao importedMonthDao = tempDb.monthBalanceDao();
 
+                // Fetch data
                 List<PaymentItem> importedItems = importedItemDao.getAllItemsOnce();
                 List<HistoryEntry> importedHistory = importedHistoryDao.getAllEntriesOnce();
+
                 List<PaymentItem> existingItems = localItemDao.getAllItemsOnce();
                 List<HistoryEntry> existingHistory = localHistoryDao.getAllEntriesOnce();
 
+                // ---------------- MERGE PAYMENT ITEMS ----------------
                 for (PaymentItem item : importedItems) {
                     boolean isDuplicate = false;
                     for (PaymentItem existing : existingItems) {
@@ -201,6 +211,7 @@ public class RoomHelper {
                     }
                 }
 
+                // ---------------- MERGE HISTORY ----------------
                 for (HistoryEntry entry : importedHistory) {
                     boolean isDuplicate = false;
                     for (HistoryEntry existing : existingHistory) {
@@ -222,6 +233,26 @@ public class RoomHelper {
                     }
                 }
 
+                // ---------------- MERGE MONTH BALANCE ----------------
+                Double localBalance = localMonthDao.getBalanceOnce();
+                Double importedBalance = importedMonthDao.getBalanceOnce();
+
+                double finalBalance = 0.0;
+
+                if (localBalance != null) {
+                    finalBalance += localBalance;
+                }
+
+                if (importedBalance != null) {
+                    finalBalance += importedBalance;
+                }
+
+                // Save merged balance ONLY if at least one exists
+                if (localBalance != null || importedBalance != null) {
+                    localMonthDao.insertOrUpdate(new MonthBalance(finalBalance));
+                }
+
+                // Cleanup
                 tempDb.close();
                 tempFile.delete();
 
@@ -233,6 +264,7 @@ public class RoomHelper {
             }
         });
     }
+
 
     public interface MergeCallback {
         void onSuccess();
