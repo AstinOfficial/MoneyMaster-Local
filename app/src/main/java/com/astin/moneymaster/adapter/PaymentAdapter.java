@@ -174,7 +174,7 @@ public class PaymentAdapter extends RecyclerView.Adapter<PaymentAdapter.ViewHold
 
 
         holder.amounttxt.setOnEditorActionListener((v, actionId, event) -> {
-            if (actionId == EditorInfo.IME_ACTION_SEND ||
+            if (actionId == EditorInfo.IME_ACTION_DONE ||
                     (event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER &&
                             event.getAction() == KeyEvent.ACTION_DOWN)) {
                 holder.payButton.performClick();

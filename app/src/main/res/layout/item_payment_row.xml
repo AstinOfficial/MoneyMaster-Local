@@ -73,7 +73,7 @@
                 android:layout_height="wrap_content"
                 android:inputType="numberSigned|numberDecimal"
                 android:textColor="#FFFFFF"
-                android:imeOptions="actionSend" />
+                android:imeOptions="actionDone" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Pay Button -->
