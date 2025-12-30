@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -7,39 +8,75 @@
     android:background="#121212"
     tools:context=".MainActivity">
 
-    <!-- RecyclerView with dark background -->
+    <!-- Centered Month Balance Text + EditText -->
+    <LinearLayout
+        android:id="@+id/monthBalanceContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:id="@+id/tvMonthBudgetLeft"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="MONTH BALANCE : "
+            android:textColor="@android:color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:paddingStart="15dp"
+            android:paddingTop="15dp"
+            android:paddingBottom="5dp" />
+
+        <EditText
+            android:id="@+id/etMonthBalance"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:hint="0"
+            android:inputType="number"
+            android:textColor="@android:color/white"
+            android:textColorHint="#AAAAAA"
+            android:textSize="16sp"
+            android:background="@android:color/transparent"
+            android:paddingTop="15dp"
+            android:paddingBottom="5dp"
+            android:imeOptions="actionDone"
+            android:maxLines="1" />
+
+    </LinearLayout>
+
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:clipToPadding="false"
-        android:padding="8dp"
         android:scrollbars="vertical"
-        android:background="#121212"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/monthBalanceContainer"
         app:layout_constraintBottom_toTopOf="@id/plusButton"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- FloatingActionButton at bottom-right -->
+    <!-- FloatingActionButton -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/plusButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:contentDescription="Add item"
         android:src="@android:drawable/ic_input_add"
+        android:layout_margin="16dp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/recyclerView"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_margin="16dp" />
+        app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Modern centered ProgressBar -->
+    <!-- Centered ProgressBar -->
     <ProgressBar
         android:id="@+id/progressBar"
+        style="?android:attr/progressBarStyleLarge"
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:visibility="gone"
-        style="?android:attr/progressBarStyleLarge"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
